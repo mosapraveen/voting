@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Voting App</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+    #vote-section, #results { margin-top: 20px; }
+    .option { margin: 10px 0; }
+    #results { display: none; }
+    button { padding: 8px 12px; margin-top: 10px; }
+    h2, h3 { color: #333; }
+  </style>
+</head>
+<body>
+  <h2>🔐 Login to Vote</h2>
+  <div id="login">
+    <button onclick="login()">Sign in with Google</button>
+  </div>
+  <div id="user" style="display:none;">
+    Logged in as <span id="user-name"></span>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <div id="vote-section" style="display:none;">
+    <h3>🗳️ Vote for your favorite color</h3>
+    <form id="vote-form">
+      <div class="option"><input type="radio" name="color" value="Red" required> Red</div>
+      <div class="option"><input type="radio" name="color" value="Blue"> Blue</div>
+      <div class="option"><input type="radio" name="color" value="Green"> Green</div>
+      <button type="submit">Submit Vote</button>
+    </form>
+  </div>
+
+  <div id="results">
+    <h3>📊 Live Results</h3>
+    <ul id="results-list"></ul>
+  </div>
+
+  <script>
+    // ✅ Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDkzM-rjssM4HCWJU_5M1WYafsqk-oTmZI",
+      authDomain: "voting-506d1.firebaseapp.com",
+      projectId: "voting-506d1",
+      storageBucket: "voting-506d1.firebasestorage.app",
+      messagingSenderId: "533402008197",
+      appId: "1:533402008197:web:20ea04319b6ad0ba83c7ec",
+      measurementId: "G-JDT7TDMQMZ"
+    };
+
+    // ✅ Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUser;
+
+    // 🔐 Google Sign-In
+    function login() {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider);
+    }
+
+    // 🔓 Sign Out
+    function logout() {
+      auth.signOut();
+    }
+
+    // 🔄 Auth State Check
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        currentUser = user;
+        document.getElementById('login').style.display = 'none';
+        document.getElementById('user').style.display = 'block';
+        document.getElementById('user-name').innerText = user.displayName;
+        checkIfVoted();
+      } else {
+        currentUser = null;
+        document.getElementById('login').style.display = 'block';
+        document.getElementById('user').style.display = 'none';
+        document.getElementById('vote-section').style.display = 'none';
+        document.getElementById('results').style.display = 'none';
+      }
+    });
+
+    // 🔍 Check if user has voted
+    function checkIfVoted() {
+      db.collection("votes").doc(currentUser.uid).get().then(doc => {
+        if (doc.exists) {
+          showResults();
+        } else {
+          document.getElementById('vote-section').style.display = 'block';
+        }
+      });
+    }
+
+    // 🗳️ Handle vote submission
+    document.getElementById("vote-form").addEventListener("submit", e => {
+      e.preventDefault();
+      const selected = document.querySelector('input[name="color"]:checked').value;
+      db.collection("votes").doc(currentUser.uid).set({
+        user: currentUser.displayName,
+        vote: selected
+      }).then(() => {
+        document.getElementById('vote-section').style.display = 'none';
+        showResults();
+      });
+    });
+
+    // 📊 Show real-time results
+    function showResults() {
+      document.getElementById('results').style.display = 'block';
+      db.collection("votes").onSnapshot(snapshot => {
+        const counts = { Red: 0, Blue: 0, Green: 0 };
+        snapshot.forEach(doc => {
+          const vote = doc.data().vote;
+          if (counts[vote] !== undefined) counts[vote]++;
+        });
+        const list = document.getElementById("results-list");
+        list.innerHTML = "";
+        for (let color in counts) {
+          const li = document.createElement("li");
+          li.textContent = `${color}: ${counts[color]} votes`;
+          list.appendChild(li);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
