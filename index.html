@@ -1,81 +1,100 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Voting App</title>
+  <title>🗳️ MakeVote</title>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <style>
     body { font-family: Arial; padding: 20px; background: #f5f5f5; }
     #vote-section, #results { margin-top: 20px; }
-    .option { margin: 10px 0; }
-    #results { display: none; }
-    button { padding: 8px 12px; margin-top: 10px; }
-    h2, h3 { color: #333; }
+    button.nominee-btn {
+      padding: 10px 20px; margin: 5px; font-size: 16px;
+      cursor: pointer; border: none; border-radius: 5px;
+      background-color: #4CAF50; color: white;
+      transition: background-color 0.3s;
+    }
+    button.nominee-btn:hover {
+      background-color: #45a049;
+    }
+    #results-list {
+      list-style-type: none;
+      padding-left: 0;
+    }
+    #results-list li {
+      background: #ddd; margin: 6px 0; padding: 10px; border-radius: 4px;
+    }
+    #error { color: red; margin-top: 10px; }
   </style>
 </head>
 <body>
-  <h2>🔐 Login to Vote</h2>
+
+  <h2>🗳️ MakeVote</h2>
+
   <div id="login">
     <button onclick="login()">Sign in with Google</button>
+    <div id="error"></div>
   </div>
+
   <div id="user" style="display:none;">
     Logged in as <span id="user-name"></span>
     <button onclick="logout()">Logout</button>
   </div>
 
   <div id="vote-section" style="display:none;">
-    <h3>🗳️ Vote for your favorite color</h3>
-    <form id="vote-form">
-      <div class="option"><input type="radio" name="color" value="Red" required> Red</div>
-      <div class="option"><input type="radio" name="color" value="Blue"> Blue</div>
-      <div class="option"><input type="radio" name="color" value="Green"> Green</div>
-      <button type="submit">Submit Vote</button>
-    </form>
+    <h3>Vote for your favorite nominee</h3>
+    <button class="nominee-btn" data-name="Kiran">Vote Kiran</button>
+    <button class="nominee-btn" data-name="Krishnasai">Vote Krishnasai</button>
+    <button class="nominee-btn" data-name="Karthik">Vote Karthik</button>
+    <button class="nominee-btn" data-name="Kumarswamy">Vote Kumarswamy</button>
   </div>
 
-  <div id="results">
-    <h3>📊 Live Results</h3>
+  <div id="results" style="display:none;">
+    <h3>Live Results</h3>
     <ul id="results-list"></ul>
   </div>
 
   <script>
-    // ✅ Your Firebase config
+    // Your Firebase config here (replace with your own config)
     const firebaseConfig = {
-      apiKey: "AIzaSyDkzM-rjssM4HCWJU_5M1WYafsqk-oTmZI",
-      authDomain: "voting-506d1.firebaseapp.com",
-      projectId: "voting-506d1",
-      storageBucket: "voting-506d1.firebasestorage.app",
-      messagingSenderId: "533402008197",
-      appId: "1:533402008197:web:20ea04319b6ad0ba83c7ec",
-      measurementId: "G-JDT7TDMQMZ"
+      apiKey: "AIzaSyADwOdiTDyKi06D_eNxp5UWgeE_XaIX1lw",
+      authDomain: "makevote-1ff6f.firebaseapp.com",
+      projectId: "makevote-1ff6f",
+      storageBucket: "makevote-1ff6f.appspot.com",
+      messagingSenderId: "316658003031",
+      appId: "1:316658003031:web:eb2b21f47b2b990d194712",
+      measurementId: "G-NZRSDP8YRW"
     };
 
-    // ✅ Initialize Firebase
+    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
     let currentUser;
 
-    // 🔐 Google Sign-In
+    // Login function
     function login() {
       const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithPopup(provider);
+      auth.signInWithPopup(provider)
+        .catch(error => {
+          console.error("Login Error:", error);
+          document.getElementById('error').textContent = error.message;
+        });
     }
 
-    // 🔓 Sign Out
+    // Logout function
     function logout() {
       auth.signOut();
     }
 
-    // 🔄 Auth State Check
+    // Auth state change listener
     auth.onAuthStateChanged(user => {
       if (user) {
         currentUser = user;
         document.getElementById('login').style.display = 'none';
         document.getElementById('user').style.display = 'block';
-        document.getElementById('user-name').innerText = user.displayName;
+        document.getElementById('user-name').textContent = user.displayName;
         checkIfVoted();
       } else {
         currentUser = null;
@@ -86,48 +105,77 @@
       }
     });
 
-    // 🔍 Check if user has voted
+    // Check if current user has voted
     function checkIfVoted() {
       db.collection("votes").doc(currentUser.uid).get().then(doc => {
         if (doc.exists) {
+          // User voted, show results
           showResults();
         } else {
+          // User hasn't voted, show voting buttons
           document.getElementById('vote-section').style.display = 'block';
+          document.getElementById('results').style.display = 'none';
         }
+      }).catch(error => {
+        console.error("Error checking vote:", error);
+        document.getElementById('error').textContent = error.message;
       });
     }
 
-    // 🗳️ Handle vote submission
-    document.getElementById("vote-form").addEventListener("submit", e => {
-      e.preventDefault();
-      const selected = document.querySelector('input[name="color"]:checked').value;
-      db.collection("votes").doc(currentUser.uid).set({
-        user: currentUser.displayName,
-        vote: selected
-      }).then(() => {
-        document.getElementById('vote-section').style.display = 'none';
-        showResults();
+    // Handle voting button clicks
+    document.querySelectorAll('.nominee-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        const nominee = button.getAttribute('data-name');
+        console.log("Vote for:", nominee);
+        if (!currentUser) {
+          alert("You must be logged in to vote.");
+          return;
+        }
+        // Save vote
+        db.collection("votes").doc(currentUser.uid).set({
+          user: currentUser.displayName,
+          vote: nominee
+        }).then(() => {
+          console.log("Vote saved for", nominee);
+          alert(`You voted for ${nominee}!`);
+          document.getElementById('vote-section').style.display = 'none';
+          showResults();
+        }).catch(error => {
+          console.error("Error saving vote:", error);
+          alert("Error saving vote: " + error.message);
+        });
       });
     });
 
-    // 📊 Show real-time results
+    // Show live results with real-time updates
     function showResults() {
       document.getElementById('results').style.display = 'block';
+
       db.collection("votes").onSnapshot(snapshot => {
-        const counts = { Red: 0, Blue: 0, Green: 0 };
+        const counts = {
+          Kiran: 0,
+          Krishnasai: 0,
+          Karthik: 0,
+          Kumarswamy: 0
+        };
         snapshot.forEach(doc => {
           const vote = doc.data().vote;
           if (counts[vote] !== undefined) counts[vote]++;
         });
+
         const list = document.getElementById("results-list");
         list.innerHTML = "";
-        for (let color in counts) {
+        for (const nominee in counts) {
           const li = document.createElement("li");
-          li.textContent = `${color}: ${counts[color]} votes`;
+          li.textContent = `${nominee}: ${counts[nominee]} vote${counts[nominee] !== 1 ? 's' : ''}`;
           list.appendChild(li);
         }
+      }, error => {
+        console.error("Error getting live results:", error);
+        document.getElementById('error').textContent = error.message;
       });
     }
   </script>
+
 </body>
 </html>
